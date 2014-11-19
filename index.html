@@ -1,0 +1,118 @@
+ <html>
+ <head>
+ 	<link rel="stylesheet" href="bower_components/leaflet/dist/leaflet.css" />
+ 	<script src="bower_components/leaflet/dist/leaflet.js"></script>
+ <script src="http://d3js.org/d3.v3.min.js"></script>
+ 	<script src="bower_components/jquery/dist/jquery.js"></script>
+ 	<script src="bower_components/d3-leaflet-layers.js"></script>
+ 	<script src="http://d3js.org/colorbrewer.v1.min.js"></script>
+ 	<style>
+ 		#map{
+ 			width:100%;
+ 			height:100%;
+ 		}
+ 		#legend{
+ 			width:200px;
+ 			height:100px;
+ 			position:absolute;
+ 			top:20px;
+ 			right:20px;
+ 			z-index: 10000;
+ 			background-color: #fff;
+ 			color:#000;
+ 		}
+ 	</style>
+ </head>
+ <body>
+ 	 <div id="map">
+ 	 
+ 	 </div>
+<!--  	 <div id="legend"></div> -->
+ </body>
+ <script>
+ 	var mapquestOSM = L.tileLayer("http://{s}.tiles.mapbox.com/v3/am3081.h0po4e8k/{z}/{x}/{y}.png");
+		
+		
+	var map = L.map("map", {
+	  center: [39.8282, -98.5795],
+	  zoom: 4,
+	  layers: [mapquestOSM],
+	  zoomControl: true
+	});
+
+	var parkMap = {
+	  "type": "FeatureCollection",
+  	"features": []
+	}
+
+	d3.csv('all_parks_with_date.csv',function(err,data){
+		console.log('test',data);
+		data.map(function(park,i){
+
+			if( isNaN(park['Long/Lat'].split(',').reverse().map(function(d){return +d})[0]) || isNaN(park['Long/Lat'].split(',').reverse().map(function(d){return +d})[1]) || park['Date range'].substr(0,4) == 'N.D.'  || park['Date range'].substr(0,4) == 0){
+
+			}else{
+				//console.log(park['Date range']);
+				parkMap.features.push({
+					type:'Feature',
+					properties: {"id":i,date:park['Date range'].substr(0,4)},
+					geometry: {
+						type:'Point',
+						coordinates:park['Long/Lat'].split(',').reverse().map(function(d){return +d})
+					}
+				});
+			}
+		})
+		console.log(parkMap);
+		//
+		var dateSet = parkMap.features.map(function(d){
+			return +d.properties.date;
+		}) 
+		console.log(d3.min(dateSet),d3.max(dateSet));
+		
+		var yearScale = d3.scale.quantile();
+
+		yearScale.domain([d3.min(dateSet),d3.max(dateSet)])
+		yearScale.range(colorbrewer.RdYlGn[11].reverse());
+		
+		console.log(yearScale(1923))
+		
+		var strokeF = function (d){
+			//console.log(yearScale(d.properties.date));
+			return yearScale(d.properties.date);
+		};
+
+		var options = {
+				layerId:'parkMap',
+				classed:'parks',
+				stroke: strokeF,
+				fill: strokeF
+		};
+		
+		currentLayer = new L.GeoJSON.d3(parkMap,options)
+		map.addLayer(currentLayer);
+		console.log('geojson',yearScale)
+		
+		var legend = d3.select('#legend')
+			.append('svg');
+
+
+		legend
+			.data(yearScale.quantiles())
+			.enter()
+				.append('span')
+				.text(function(d){ return parseInt(d)})
+				.attr('style',function(d){
+					return 'background-color:'+yearScale(d);
+				})
+
+		
+
+	
+	})
+
+	
+
+
+ </script>
+ </html>
